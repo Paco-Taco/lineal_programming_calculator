@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
 
-class LinearProgrammingSolver:
+class CalculadoraProgramacionLineal:
     def __init__(self, root):
         self.root = root
         self.root.title("Solver de Programación Lineal")
@@ -26,8 +26,9 @@ class LinearProgrammingSolver:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
 
-        # Configurar expansión del main_frame
+        # Configurar dos columnas: una para la entrada de datos (columna 0) y otra para la salida (columna 1)
         main_frame.columnconfigure(0, weight=1)
+        main_frame.columnconfigure(1, weight=2)  # Más peso a la columna 1 para la salida
         main_frame.rowconfigure(6, weight=1)
 
         # Método de Solución (con Combobox)
@@ -47,7 +48,6 @@ class LinearProgrammingSolver:
         # Optimización
         opt_frame = ttk.LabelFrame(main_frame, text="Tipo de Optimización")
         opt_frame.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
-
         opt_frame.columnconfigure(0, weight=1)
         opt_frame.columnconfigure(1, weight=1)
 
@@ -115,9 +115,9 @@ class LinearProgrammingSolver:
         solve_button = ttk.Button(main_frame, text="Resolver", command=self.solve)
         solve_button.grid(row=5, column=0, pady=20, sticky="ew")
 
-        # Salida
+        # Salida (abarcará toda la columna derecha)
         output_frame = ttk.LabelFrame(main_frame, text="Solución")
-        output_frame.grid(row=6, column=0, padx=10, pady=10, sticky="nsew")
+        output_frame.grid(row=0, column=1, rowspan=6, padx=10, pady=10, sticky="nsew")
         output_frame.columnconfigure(0, weight=1)
         output_frame.rowconfigure(0, weight=1)
 
@@ -128,6 +128,7 @@ class LinearProgrammingSolver:
         scrollbar = ttk.Scrollbar(output_frame, orient="vertical", command=self.output_text.yview)
         scrollbar.grid(row=0, column=1, sticky="ns")
         self.output_text.configure(yscrollcommand=scrollbar.set)
+
 
     def solve(self):
         # Recolectar datos
@@ -241,7 +242,7 @@ class LinearProgrammingSolver:
             
             # Variable saliente (mínima razón positiva)
             leaving = ratios.index(min(ratios))
-            self.output_text.insert(tk.END, f"Variable saliente: x{basis[leaving]+1}\n")
+            self.output_text.insert(tk.END, f"Variable saliente: b{basis[leaving]}\n")
             
             # Pivoteo
             pivot_element = tableau[leaving][entering]
@@ -300,8 +301,8 @@ class LinearProgrammingSolver:
         # Mostrar filas del tableau
         for i in range(len(tableau)):
             row = tableau[i]
-            base_var = basis[i]
-            row_str = f"|  x{base_var+1:<3}|"
+            base_var = f"b_{i+1}"  # Cambiado a "b_i" para las restricciones
+            row_str = f"|  {base_var:<3}|"
             for val in row[:-1]:
                 row_str += f" {val:>8.2f} |"
             row_str += f" {row[-1]:>8.2f} |"
@@ -319,7 +320,7 @@ class LinearProgrammingSolver:
             self.output_text.insert(tk.END, "-----------" * num_slack_surplus_vars + "+")
             self.output_text.insert(tk.END, "----------+\n")
         
-        # Mostrar fila de Z
+        # Mostrar fila de Z (cj - zj)
         if cj_zj:
             z_value = sum(c_extended[basis[i]] * tableau[i][-1] for i in range(len(basis)))
             row_str = f"|  Z   |"
@@ -331,7 +332,8 @@ class LinearProgrammingSolver:
             self.output_text.insert(tk.END, "-----------" * num_decision_vars + "+")
             self.output_text.insert(tk.END, "-----------" * num_slack_surplus_vars + "+")
             self.output_text.insert(tk.END, "----------+\n")
-    
+
+        
     def big_m_method(self, c, A, b, signs):
         self.output_text.delete(1.0, tk.END)
         
@@ -442,7 +444,7 @@ class LinearProgrammingSolver:
             
             # Variable saliente
             leaving = ratios.index(min(ratios))
-            self.output_text.insert(tk.END, f"Variable saliente: x{basis[leaving]+1}\n")
+            self.output_text.insert(tk.END, f"Variable saliente: b{basis[leaving]+1}\n")
             
             # Pivoteo
             pivot_element = tableau[leaving][entering]
@@ -578,7 +580,7 @@ class LinearProgrammingSolver:
             
             # Variable saliente
             leaving = ratios.index(min(ratios))
-            self.output_text.insert(tk.END, f"Variable saliente: x{basis[leaving]+1}\n")
+            self.output_text.insert(tk.END, f"Variable saliente: b{basis[leaving]+1}\n")
             
             # Pivoteo
             pivot_element = tableau[leaving][entering]
@@ -666,7 +668,7 @@ class LinearProgrammingSolver:
             
             # Variable saliente
             leaving = ratios.index(min(ratios))
-            self.output_text.insert(tk.END, f"Variable saliente: x{basis[leaving]+1}\n")
+            self.output_text.insert(tk.END, f"Variable saliente: b{basis[leaving]+1}\n")
             
             # Pivoteo
             pivot_element = tableau[leaving][entering]
@@ -700,5 +702,5 @@ class LinearProgrammingSolver:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = LinearProgrammingSolver(root)
+    app = CalculadoraProgramacionLineal(root)
     root.mainloop()
