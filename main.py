@@ -173,18 +173,19 @@ class CalculadoraProgramacionLineal:
         num_variables = len(c)
         num_constraints = len(A)
         
-        # Extender coeficientes de la función objetivo
         c_extended = c[:]
-        
-        # Agregar variables de holgura
         tableau = []
         basis = []
         slack_var_index = num_variables
+        
+        variable_names = [f"X{i+1}" for i in range(num_variables)]
+        
         for i in range(num_constraints):
             row = A[i][:]
             slack = [0] * num_constraints
             slack[i] = 1
             c_extended.append(0)
+            variable_names.append(f"S{slack_var_index - num_variables +1}")
             basis.append(slack_var_index)
             slack_var_index +=1
             row.extend(slack)
@@ -193,7 +194,7 @@ class CalculadoraProgramacionLineal:
         
         # Mostrar el tableau inicial
         self.output_text.insert(tk.END, "Tabla Inicial:\n")
-        self.display_tableau(tableau, c_extended, basis)
+        self.display_tableau(tableau, c_extended, basis, variable_names)
         
         # Iniciar iteraciones
         iteration = 0
@@ -209,7 +210,7 @@ class CalculadoraProgramacionLineal:
             cj_zj = [c_extended[j] - zj[j] for j in range(len(c_extended))]
             
             # Mostrar el tableau con las ganancias relativas
-            self.display_tableau(tableau, c_extended, basis, cj_zj=cj_zj)
+            self.display_tableau(tableau, c_extended, basis, variable_names, cj_zj=cj_zj)
             
             # Verificar optimalidad
             if all(value <= 1e-5 for value in cj_zj):
@@ -222,7 +223,7 @@ class CalculadoraProgramacionLineal:
                 self.output_text.insert(tk.END, "No hay variables entrantes. El problema puede tener soluciones múltiples.\n")
                 break
             entering = max(entering_candidates, key=lambda j: cj_zj[j])
-            self.output_text.insert(tk.END, f"Variable entrante: x{entering+1}\n")
+            self.output_text.insert(tk.END, f"Variable entrante: {variable_names[entering]}\n")
             
             # Calcular razones (b_i / a_i)
             ratios = []
@@ -233,7 +234,7 @@ class CalculadoraProgramacionLineal:
                     ratios.append(float('inf'))
             
             # Mostrar las razones en el tableau
-            self.display_tableau(tableau, c_extended, basis, ratios=ratios, entering=entering)
+            self.display_tableau(tableau, c_extended, basis, variable_names, ratios=ratios, entering=entering)
             
             # Verificar si es ilimitado
             if all(r == float('inf') for r in ratios):
@@ -242,7 +243,7 @@ class CalculadoraProgramacionLineal:
             
             # Variable saliente (mínima razón positiva)
             leaving = ratios.index(min(ratios))
-            self.output_text.insert(tk.END, f"Variable saliente: b{basis[leaving]}\n")
+            self.output_text.insert(tk.END, f"Variable saliente: {variable_names[basis[leaving]]}\n")
             
             # Pivoteo
             pivot_element = tableau[leaving][entering]
@@ -270,30 +271,24 @@ class CalculadoraProgramacionLineal:
             z = -z
         self.output_text.insert(tk.END, f"\nSolución Óptima:\n")
         for i in range(num_variables):
-            self.output_text.insert(tk.END, f"x{i+1} = {solution[i]:.2f}\n")
+            self.output_text.insert(tk.END, f"{variable_names[i]} = {solution[i]:.2f}\n")
         self.output_text.insert(tk.END, f"Z = {z:.2f}\n")
         
-    def display_tableau(self, tableau, c_extended, basis, cj_zj=None, ratios=None, entering=None):
+    def display_tableau(self, tableau, c_extended, basis, variable_names, cj_zj=None, ratios=None, entering=None):
         num_vars = len(c_extended)
-        num_decision_vars = self.num_variables
-        num_slack_surplus_vars = num_vars - num_decision_vars
         # Construir encabezados
         header = "+------+"
-        header += "-----------" * num_decision_vars + "+"
-        header += "-----------" * num_slack_surplus_vars + "+"
+        header += "-----------" * num_vars + "+"
         header += "----------+\n"
         
         title_row = "| Base |"
-        for i in range(num_decision_vars):
-            title_row += f"   X{i+1}   |"
-        for i in range(num_slack_surplus_vars):
-            title_row += f"   S{i+1}   |"
+        for var_name in variable_names:
+            title_row += f"   {var_name:<5}|"
         title_row += " Solución |\n"
         
         header += title_row
         header += "+------+"
-        header += "-----------" * num_decision_vars + "+"
-        header += "-----------" * num_slack_surplus_vars + "+"
+        header += "-----------" * num_vars + "+"
         header += "----------+\n"
         
         self.output_text.insert(tk.END, header)
@@ -301,8 +296,9 @@ class CalculadoraProgramacionLineal:
         # Mostrar filas del tableau
         for i in range(len(tableau)):
             row = tableau[i]
-            base_var = f"b_{i+1}"  # Cambiado a "b_i" para las restricciones
-            row_str = f"|  {base_var:<3}|"
+            base_var = basis[i]
+            base_var_name = variable_names[base_var]
+            row_str = f"| {base_var_name:<4}|"
             for val in row[:-1]:
                 row_str += f" {val:>8.2f} |"
             row_str += f" {row[-1]:>8.2f} |"
@@ -316,24 +312,21 @@ class CalculadoraProgramacionLineal:
             row_str += "\n"
             self.output_text.insert(tk.END, row_str)
             self.output_text.insert(tk.END, "+------+")
-            self.output_text.insert(tk.END, "-----------" * num_decision_vars + "+")
-            self.output_text.insert(tk.END, "-----------" * num_slack_surplus_vars + "+")
+            self.output_text.insert(tk.END, "-----------" * num_vars + "+")
             self.output_text.insert(tk.END, "----------+\n")
         
-        # Mostrar fila de Z (cj - zj)
+        # Mostrar fila de Z
         if cj_zj:
             z_value = sum(c_extended[basis[i]] * tableau[i][-1] for i in range(len(basis)))
-            row_str = f"|  Z   |"
+            row_str = f"|   Z  |"
             for val in cj_zj:
                 row_str += f" {val:>8.2f} |"
             row_str += f" {z_value:>8.2f} |\n"
             self.output_text.insert(tk.END, row_str)
             self.output_text.insert(tk.END, "+------+")
-            self.output_text.insert(tk.END, "-----------" * num_decision_vars + "+")
-            self.output_text.insert(tk.END, "-----------" * num_slack_surplus_vars + "+")
+            self.output_text.insert(tk.END, "-----------" * num_vars + "+")
             self.output_text.insert(tk.END, "----------+\n")
-
-        
+    
     def big_m_method(self, c, A, b, signs):
         self.output_text.delete(1.0, tk.END)
         
@@ -347,6 +340,8 @@ class CalculadoraProgramacionLineal:
         artificial_vars = []
         var_index = num_variables
         
+        variable_names = [f"X{i+1}" for i in range(num_variables)]
+        
         for i in range(num_constraints):
             row = A[i][:]
             slack_surplus = [0]*num_constraints
@@ -355,21 +350,26 @@ class CalculadoraProgramacionLineal:
                 # Agregar variable de holgura
                 slack_surplus[i] = 1
                 c_extended.append(0)
+                variable_names.append(f"S{var_index - num_variables +1}")
                 basis.append(var_index)
                 var_index += 1
             elif signs[i] == ">=":
                 # Agregar variable de superávit y variable artificial
                 slack_surplus[i] = -1
                 c_extended.append(0)
+                variable_names.append(f"S{var_index - num_variables +1}")
+                var_index += 1
                 artificial[i] = 1
-                c_extended.append(M)
-                artificial_vars.append(var_index + 1)
-                basis.append(var_index + 1)
-                var_index += 2
+                c_extended.append(-M)
+                variable_names.append(f"A{var_index - num_variables +1}")
+                artificial_vars.append(var_index)
+                basis.append(var_index)
+                var_index += 1
             elif signs[i] == "=":
                 # Agregar variable artificial
                 artificial[i] = 1
-                c_extended.append(M)
+                c_extended.append(-M)
+                variable_names.append(f"A{var_index - num_variables +1}")
                 artificial_vars.append(var_index)
                 basis.append(var_index)
                 var_index += 1
@@ -385,16 +385,9 @@ class CalculadoraProgramacionLineal:
         while len(c_extended) < len(tableau[0])-1:
             c_extended.append(0)
         
-        # Ajustar los coeficientes de la función objetivo para las variables artificiales
-        for idx in artificial_vars:
-            if self.optimization_type.get() == "Minimizar":
-                c_extended[idx] = -M
-            else:
-                c_extended[idx] = -M  # Cambiar a -M para maximizar
-        
         # Mostrar el tableau inicial
         self.output_text.insert(tk.END, "Tabla Inicial (Método de la M Grande):\n")
-        self.display_tableau(tableau, c_extended, basis)
+        self.display_tableau(tableau, c_extended, basis, variable_names)
         
         # Iniciar iteraciones
         iteration = 0
@@ -411,7 +404,7 @@ class CalculadoraProgramacionLineal:
             cj_zj = [c_extended[j] - zj[j] for j in range(len(zj))]
             
             # Mostrar el tableau con las ganancias relativas
-            self.display_tableau(tableau, c_extended, basis, cj_zj=cj_zj)
+            self.display_tableau(tableau, c_extended, basis, variable_names, cj_zj=cj_zj)
             
             # Verificar optimalidad
             if all(value <= 1e-5 for value in cj_zj):
@@ -424,7 +417,7 @@ class CalculadoraProgramacionLineal:
                 self.output_text.insert(tk.END, "No hay variables entrantes. El problema puede tener soluciones múltiples.\n")
                 break
             entering = entering_candidates[0]  # Puede usarse alguna estrategia
-            self.output_text.insert(tk.END, f"Variable entrante: x{entering+1}\n")
+            self.output_text.insert(tk.END, f"Variable entrante: {variable_names[entering]}\n")
             
             # Calcular razones
             ratios = []
@@ -435,7 +428,7 @@ class CalculadoraProgramacionLineal:
                     ratios.append(float('inf'))
             
             # Mostrar las razones en el tableau
-            self.display_tableau(tableau, c_extended, basis, ratios=ratios, entering=entering)
+            self.display_tableau(tableau, c_extended, basis, variable_names, ratios=ratios, entering=entering)
             
             # Verificar ilimitado
             if all(r == float('inf') for r in ratios):
@@ -444,7 +437,7 @@ class CalculadoraProgramacionLineal:
             
             # Variable saliente
             leaving = ratios.index(min(ratios))
-            self.output_text.insert(tk.END, f"Variable saliente: b{basis[leaving]+1}\n")
+            self.output_text.insert(tk.END, f"Variable saliente: {variable_names[basis[leaving]]}\n")
             
             # Pivoteo
             pivot_element = tableau[leaving][entering]
@@ -476,23 +469,23 @@ class CalculadoraProgramacionLineal:
             z = -z
         self.output_text.insert(tk.END, f"\nSolución Óptima:\n")
         for i in range(num_variables):
-            self.output_text.insert(tk.END, f"x{i+1} = {solution[i]:.2f}\n")
+            self.output_text.insert(tk.END, f"{variable_names[i]} = {solution[i]:.2f}\n")
         self.output_text.insert(tk.END, f"Z = {z:.2f}\n")
-        
+    
     def two_phase_method(self, c, A, b, signs):
         self.output_text.delete(1.0, tk.END)
         
         num_variables = len(c)
         num_constraints = len(A)
         
-        c_extended = c[:]
+        variable_names = [f"X{i+1}" for i in range(num_variables)]
+        c_phase1 = [0]*(num_variables)
         tableau = []
         basis = []
         artificial_vars = []
         var_index = num_variables
         
         # Fase 1: Construir problema auxiliar
-        c_phase1 = [0]*(num_variables)
         for i in range(num_constraints):
             row = A[i][:]
             slack_surplus = [0]*num_constraints
@@ -500,19 +493,24 @@ class CalculadoraProgramacionLineal:
             if signs[i] == "<=":
                 slack_surplus[i] = 1
                 c_phase1.append(0)
+                variable_names.append(f"S{var_index - num_variables + 1}")
                 basis.append(var_index)
                 var_index += 1
             elif signs[i] == ">=":
                 slack_surplus[i] = -1
                 c_phase1.append(0)
+                variable_names.append(f"S{var_index - num_variables + 1}")
+                var_index += 1
                 artificial[i] = 1
                 c_phase1.append(1)
-                artificial_vars.append(var_index + 1)
-                basis.append(var_index + 1)
-                var_index += 2
+                variable_names.append(f"A{var_index - num_variables + 1}")
+                artificial_vars.append(var_index)
+                basis.append(var_index)
+                var_index += 1
             elif signs[i] == "=":
                 artificial[i] = 1
                 c_phase1.append(1)
+                variable_names.append(f"A{var_index - num_variables + 1}")
                 artificial_vars.append(var_index)
                 basis.append(var_index)
                 var_index += 1
@@ -530,7 +528,7 @@ class CalculadoraProgramacionLineal:
         
         # Mostrar el tableau inicial de la Fase 1
         self.output_text.insert(tk.END, "Fase 1: Tabla Inicial\n")
-        self.display_tableau(tableau, c_phase1, basis)
+        self.display_tableau(tableau, c_phase1, basis, variable_names)
         
         # Iniciar iteraciones de la Fase 1
         iteration = 0
@@ -547,7 +545,7 @@ class CalculadoraProgramacionLineal:
             cj_zj = [c_phase1[j] - zj[j] for j in range(len(zj))]
             
             # Mostrar el tableau con las ganancias relativas
-            self.display_tableau(tableau, c_phase1, basis, cj_zj=cj_zj)
+            self.display_tableau(tableau, c_phase1, basis, variable_names, cj_zj=cj_zj)
             
             # Verificar optimalidad
             if all(value >= -1e-5 for value in cj_zj):
@@ -560,7 +558,7 @@ class CalculadoraProgramacionLineal:
                 self.output_text.insert(tk.END, "No hay variables entrantes en Fase 1.\n")
                 break
             entering = entering_candidates[0]
-            self.output_text.insert(tk.END, f"Variable entrante: x{entering+1}\n")
+            self.output_text.insert(tk.END, f"Variable entrante: {variable_names[entering]}\n")
             
             # Calcular razones
             ratios = []
@@ -571,7 +569,7 @@ class CalculadoraProgramacionLineal:
                     ratios.append(float('inf'))
             
             # Mostrar las razones en el tableau
-            self.display_tableau(tableau, c_phase1, basis, ratios=ratios, entering=entering)
+            self.display_tableau(tableau, c_phase1, basis, variable_names, ratios=ratios, entering=entering)
             
             # Verificar ilimitado
             if all(r == float('inf') for r in ratios):
@@ -580,7 +578,7 @@ class CalculadoraProgramacionLineal:
             
             # Variable saliente
             leaving = ratios.index(min(ratios))
-            self.output_text.insert(tk.END, f"Variable saliente: b{basis[leaving]+1}\n")
+            self.output_text.insert(tk.END, f"Variable saliente: {variable_names[basis[leaving]]}\n")
             
             # Pivoteo
             pivot_element = tableau[leaving][entering]
@@ -604,22 +602,31 @@ class CalculadoraProgramacionLineal:
             return
         
         # Eliminar columnas de variables artificiales
-        artificial_vars = sorted(artificial_vars, reverse=True)
-        for var in artificial_vars:
-            for row in tableau:
-                del row[var]
-            del c_extended[var]
+        artificial_vars = sorted(artificial_vars)
+        variables_to_keep = [i for i in range(len(variable_names)) if i not in artificial_vars]
+        variable_names = [variable_names[i] for i in variables_to_keep]
         
-        # Actualizar base
+        # Ajustar basis indices
         basis = [b for b in basis if b not in artificial_vars]
+        old_to_new_indices = {old_idx: new_idx for new_idx, old_idx in enumerate(variables_to_keep)}
+        basis = [old_to_new_indices[b] for b in basis]
         
-        # Ajustar c_extended
-        while len(c_extended) < len(tableau[0])-1:
-            c_extended.append(0)
+        # Ajustar tableau
+        for i in range(len(tableau)):
+            row = tableau[i]
+            new_row = [row[old_idx] for old_idx in variables_to_keep] + [row[-1]]  # Include RHS
+            tableau[i] = new_row
         
-        # Fase 2: Resolver el problema original
+        # Preparar c_extended_phase2
+        c_extended_phase2 = [0]*len(variable_names)
+        for idx, var_name in enumerate(variable_names):
+            if var_name.startswith("X"):
+                original_idx = int(var_name[1:]) - 1
+                c_extended_phase2[idx] = c[original_idx]
+        
+        # Mostrar el tableau inicial de la Fase 2
         self.output_text.insert(tk.END, "\nFase 2: Resolver el problema original\n")
-        self.display_tableau(tableau, c_extended, basis)
+        self.display_tableau(tableau, c_extended_phase2, basis, variable_names)
         
         # Iniciar iteraciones de la Fase 2
         iteration = 0
@@ -631,11 +638,11 @@ class CalculadoraProgramacionLineal:
             zj = [0]*(len(tableau[0])-1)
             for i in range(len(basis)):
                 for j in range(len(zj)):
-                    zj[j] += c_extended[basis[i]] * tableau[i][j]
-            cj_zj = [c_extended[j] - zj[j] for j in range(len(zj))]
+                    zj[j] += c_extended_phase2[basis[i]] * tableau[i][j]
+            cj_zj = [c_extended_phase2[j] - zj[j] for j in range(len(zj))]
             
             # Mostrar el tableau con las ganancias relativas
-            self.display_tableau(tableau, c_extended, basis, cj_zj=cj_zj)
+            self.display_tableau(tableau, c_extended_phase2, basis, variable_names, cj_zj=cj_zj)
             
             # Verificar optimalidad
             if all(value <= 1e-5 for value in cj_zj):
@@ -648,7 +655,7 @@ class CalculadoraProgramacionLineal:
                 self.output_text.insert(tk.END, "No hay variables entrantes. El problema puede tener soluciones múltiples.\n")
                 break
             entering = entering_candidates[0]
-            self.output_text.insert(tk.END, f"Variable entrante: x{entering+1}\n")
+            self.output_text.insert(tk.END, f"Variable entrante: {variable_names[entering]}\n")
             
             # Calcular razones
             ratios = []
@@ -659,7 +666,7 @@ class CalculadoraProgramacionLineal:
                     ratios.append(float('inf'))
             
             # Mostrar las razones en el tableau
-            self.display_tableau(tableau, c_extended, basis, ratios=ratios, entering=entering)
+            self.display_tableau(tableau, c_extended_phase2, basis, variable_names, ratios=ratios, entering=entering)
             
             # Verificar ilimitado
             if all(r == float('inf') for r in ratios):
@@ -668,7 +675,7 @@ class CalculadoraProgramacionLineal:
             
             # Variable saliente
             leaving = ratios.index(min(ratios))
-            self.output_text.insert(tk.END, f"Variable saliente: b{basis[leaving]+1}\n")
+            self.output_text.insert(tk.END, f"Variable saliente: {variable_names[basis[leaving]]}\n")
             
             # Pivoteo
             pivot_element = tableau[leaving][entering]
@@ -686,18 +693,19 @@ class CalculadoraProgramacionLineal:
             return
         
         # Extraer solución
-        solution = [0]*(len(tableau[0])-1)
+        solution = [0]*(len(variable_names))
         for i in range(len(basis)):
             solution[basis[i]] = tableau[i][-1]
         
-        z = sum(c_extended[i]*solution[i] for i in range(len(c_extended)))
+        z = sum(c_extended_phase2[i]*solution[i] for i in range(len(c_extended_phase2)))
         if self.optimization_type.get() == "Minimizar":
             z = -z
         self.output_text.insert(tk.END, f"\nSolución Óptima:\n")
-        for i in range(num_variables):
-            self.output_text.insert(tk.END, f"x{i+1} = {solution[i]:.2f}\n")
+        for idx, var_name in enumerate(variable_names):
+            if var_name.startswith("X"):
+                self.output_text.insert(tk.END, f"{var_name} = {solution[idx]:.2f}\n")
         self.output_text.insert(tk.END, f"Z = {z:.2f}\n")
- 
+        
 
 
 if __name__ == "__main__":
