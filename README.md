@@ -1,60 +1,59 @@
-# Calculadora de Programación Lineal
+# Linear Programming Solver
 
-Esta aplicación es una calculadora interactiva para resolver problemas de programación lineal utilizando los métodos Simplex, de la M Grande y de las Dos Fases. Está diseñada con una interfaz gráfica (GUI) creada en `Tkinter`.
+This application is an interactive calculator for solving linear programming problems using the Simplex, Big M, and Two-Phase methods. It is built with a graphical user interface (GUI) using `Tkinter`.
 
-## Características
+## Features
 
-- **Métodos de solución**: 
+- **Solution Methods**:
   - Simplex
-  - Método de la M Grande
-  - Método de las Dos Fases
-- **Optimización**: 
-  - Maximización
-  - Minimización
-- **Entrada de usuario**:
-  - Coeficientes de la función objetivo
-  - Restricciones y sus signos (<=, >=, =)
-  - Variables no negativas por defecto
-- **Salida**: 
-  - Tabla de iteraciones
-  - Solución óptima, en caso de existir
-  - Detección de casos ilimitados o no factibles
+  - Big M Method
+  - Two-Phase Method
+- **Optimization**:
+  - Maximization
+  - Minimization
+- **User Input**:
+  - Coefficients for the objective function
+  - Constraints and their signs (<=, >=, =)
+  - Non-negative variable constraints by default
+- **Output**:
+  - Iteration table
+  - Optimal solution, if available
+  - Detection of unbounded or infeasible cases
 
-## Requisitos
+## Requirements
 
 - Python 3.x
 - tkinter
 
-## Instalación
+## Installation
 
-1. Clona o descarga este repositorio.
-2. Asegúrate de tener `tkinter` instalado:
-
-3. Ejecuta el archivo principal:
+1. Clone or download this repository.
+2. Ensure `tkinter` is installed:
+3. Run the main file:
     ```bash
     python main.py
     ```
 
-## Uso
+## Usage
 
-1. Al abrir la aplicación, selecciona el **método de solución** en el primer menú desplegable.
-2. Define el **tipo de optimización** (Maximizar o Minimizar).
-3. Introduce los coeficientes de la **función objetivo** y las **restricciones** en los campos correspondientes.
-4. Haz clic en el botón `Resolver` para obtener la solución del problema.
+1. Open the application and select the **solution method** from the first dropdown menu.
+2. Define the **type of optimization** (Maximize or Minimize).
+3. Enter the coefficients for the **objective function** and the **constraints** in the corresponding fields.
+4. Click the `Solve` button to obtain the solution to the problem.
 
-### Métodos de Solución
+### Solution Methods
 
-- **Método Simplex**: Utilizado para resolver problemas de maximización con restricciones tipo `<=`. Si hay restricciones `>=` o `=`, el método mostrará un mensaje de error.
-- **Método de la M Grande**: Soluciona problemas con restricciones `>=` o `=` agregando variables artificiales.
-- **Método de las Dos Fases**: Resuelve problemas con restricciones `>=` o `=`, trabajando en dos fases para encontrar una solución factible antes de optimizar.
+- **Simplex Method**: Used to solve maximization problems with `<=` constraints. If there are `>=` or `=` constraints, the method will display an error message.
+- **Big M Method**: Solves problems with `>=` or `=` constraints by adding artificial variables.
+- **Two-Phase Method**: Handles problems with `>=` or `=` constraints, working in two phases to find a feasible solution before optimization.
 
-## Ejemplo
+## Example
 
-1. Selecciona el **Método Simplex**.
-2. Introduce la siguiente función objetivo para maximizar:
+1. Select the **Simplex Method**.
+2. Enter the following objective function to maximize:
    - `Z = 3x1 + 5x2`
-3. Añade las siguientes restricciones:
+3. Add the following constraints:
    - `x1 + 2x2 <= 10`
    - `x1 + x2 <= 6`
    - `x2 <= 4`
-4. Presiona `Resolver`. La solución se mostrará en la columna de la derecha.
+4. Press `Solve`. The solution will appear in the output column on the right.
