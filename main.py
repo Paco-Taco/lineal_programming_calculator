@@ -157,7 +157,7 @@ class calc_simplex_mBig_dosFases:
         numero_restricciones = len(A)
         
         c_extended = c[:]
-        tableau = []
+        i_tabla = []
         basis = []
         slack_var_index = num_variables
         
@@ -173,10 +173,10 @@ class calc_simplex_mBig_dosFases:
             slack_var_index +=1
             row.extend(slack)
             row.append(b[i])
-            tableau.append(row)
+            i_tabla.append(row)
 
         self.output_text.insert(tk.END, "Tabla Inicial:\n")
-        self.mostrar_tabla(tableau, c_extended, basis, variable_names)
+        self.mostrar_tabla(i_tabla, c_extended, basis, variable_names)
 
         iteracion = 0
         max_iteracions = 100 
@@ -187,10 +187,10 @@ class calc_simplex_mBig_dosFases:
             zj = [0]*len(c_extended)
             for i in range(len(basis)):
                 for j in range(len(c_extended)):
-                    zj[j] += c_extended[basis[i]] * tableau[i][j]
+                    zj[j] += c_extended[basis[i]] * i_tabla[i][j]
             cj_zj = [c_extended[j] - zj[j] for j in range(len(c_extended))]
             
-            self.mostrar_tabla(tableau, c_extended, basis, variable_names, cj_zj=cj_zj)
+            self.mostrar_tabla(i_tabla, c_extended, basis, variable_names, cj_zj=cj_zj)
             
             if all(value <= 1e-5 for value in cj_zj):
                 self.output_text.insert(tk.END, "Se encontró la solución óptima.\n")
@@ -204,13 +204,13 @@ class calc_simplex_mBig_dosFases:
             self.output_text.insert(tk.END, f"Variable entrante: {variable_names[entering]}\n")
             
             ratios = []
-            for i in range(len(tableau)):
-                if tableau[i][entering] > 1e-5:
-                    ratios.append(tableau[i][-1] / tableau[i][entering])
+            for i in range(len(i_tabla)):
+                if i_tabla[i][entering] > 1e-5:
+                    ratios.append(i_tabla[i][-1] / i_tabla[i][entering])
                 else:
                     ratios.append(float('inf'))
 
-            self.mostrar_tabla(tableau, c_extended, basis, variable_names, ratios=ratios, entering=entering)
+            self.mostrar_tabla(i_tabla, c_extended, basis, variable_names, ratios=ratios, entering=entering)
             
             if all(r == float('inf') for r in ratios):
                 self.output_text.insert(tk.END, "La solución es ilimitada.\n")
@@ -219,13 +219,13 @@ class calc_simplex_mBig_dosFases:
             leaving = ratios.index(min(ratios))
             self.output_text.insert(tk.END, f"Variable saliente: {variable_names[basis[leaving]]}\n")
 
-            pivot_element = tableau[leaving][entering]
-            tableau[leaving] = [x / pivot_element for x in tableau[leaving]]
+            pivot_element = i_tabla[leaving][entering]
+            i_tabla[leaving] = [x / pivot_element for x in i_tabla[leaving]]
             
-            for i in range(len(tableau)):
+            for i in range(len(i_tabla)):
                 if i != leaving:
-                    factor = tableau[i][entering]
-                    tableau[i] = [tableau[i][j] - factor * tableau[leaving][j] for j in range(len(tableau[i]))]
+                    factor = i_tabla[i][entering]
+                    i_tabla[i] = [i_tabla[i][j] - factor * i_tabla[leaving][j] for j in range(len(i_tabla[i]))]
             
             basis[leaving] = entering
         else:
@@ -235,7 +235,7 @@ class calc_simplex_mBig_dosFases:
         solution = [0]*len(c_extended)
         for i in range(len(basis)):
             if basis[i] < len(solution):
-                solution[basis[i]] = tableau[i][-1]
+                solution[basis[i]] = i_tabla[i][-1]
         
         z = sum(c_extended[i]*solution[i] for i in range(len(c_extended)))
         if self.optimization_type.get() == "Minimizar":
@@ -245,7 +245,7 @@ class calc_simplex_mBig_dosFases:
             self.output_text.insert(tk.END, f"{variable_names[i]} = {solution[i]:.2f}\n")
         self.output_text.insert(tk.END, f"Z = {z:.2f}\n")
         
-    def mostrar_tabla(self, tableau, c_extended, basis, variable_names, cj_zj=None, ratios=None, entering=None):
+    def mostrar_tabla(self, i_tabla, c_extended, basis, variable_names, cj_zj=None, ratios=None, entering=None):
         num_vars = len(c_extended)
         header = "+------+"
         header += "-----------" * num_vars + "+"
@@ -263,8 +263,8 @@ class calc_simplex_mBig_dosFases:
         
         self.output_text.insert(tk.END, header)
 
-        for i in range(len(tableau)):
-            row = tableau[i]
+        for i in range(len(i_tabla)):
+            row = i_tabla[i]
             base_var = basis[i]
             base_var_name = variable_names[base_var]
             row_str = f"| {base_var_name:<4}|"
@@ -284,7 +284,7 @@ class calc_simplex_mBig_dosFases:
             self.output_text.insert(tk.END, "----------+\n")
         
         if cj_zj:
-            z_value = sum(c_extended[basis[i]] * tableau[i][-1] for i in range(len(basis)))
+            z_value = sum(c_extended[basis[i]] * i_tabla[i][-1] for i in range(len(basis)))
             row_str = f"|   Z  |"
             for val in cj_zj:
                 row_str += f" {val:>8.2f} |"
@@ -294,135 +294,155 @@ class calc_simplex_mBig_dosFases:
             self.output_text.insert(tk.END, "-----------" * num_vars + "+")
             self.output_text.insert(tk.END, "----------+\n")
     
+
     def m_grande(self, c, A, b, signs):
         self.output_text.delete(1.0, tk.END)
-        
-        M = 1e6  
+
+        M = 1e6
         num_variables = len(c)
         numero_restricciones = len(A)
-        
+
         c_extended = c[:]
         tableau = []
         basis = []
-        varaibles_artificiales = []
+        variables_artificiales = []
         var_index = num_variables
-        
-        variable_names = [f"X{i+1}" for i in range(num_variables)]
-        
+
+        variable_names = [f"X{i + 1}" for i in range(num_variables)]
+        print("Inicializando variables...")
+        print(f"c_extended: {c_extended}, tableau: {tableau}, basis: {basis}, var_index: {var_index}")
+
         for i in range(numero_restricciones):
+            print(f"Procesando restricción {i}: {A[i]}, signo: {signs[i]}")
+
             row = A[i][:]
-            slack_surplus = [0]*numero_restricciones
-            artificial = [0]*numero_restricciones
+            slack_surplus = [0] * numero_restricciones
+            artificial = [0] * numero_restricciones
+
             if signs[i] == "<=":
-        
                 slack_surplus[i] = 1
                 c_extended.append(0)
-                variable_names.append(f"S{var_index - num_variables +1}")
+                variable_names.append(f"S{var_index - num_variables + 1}")
                 basis.append(var_index)
                 var_index += 1
             elif signs[i] == ">=":
-
                 slack_surplus[i] = -1
                 c_extended.append(0)
-                variable_names.append(f"S{var_index - num_variables +1}")
+                variable_names.append(f"S{var_index - num_variables + 1}")
                 var_index += 1
                 artificial[i] = 1
                 c_extended.append(-M)
-                variable_names.append(f"A{var_index - num_variables +1}")
-                varaibles_artificiales.append(var_index)
+                variable_names.append(f"A{var_index - num_variables + 1}")
+                variables_artificiales.append(var_index)
                 basis.append(var_index)
                 var_index += 1
             elif signs[i] == "=":
-
                 artificial[i] = 1
                 c_extended.append(-M)
-                variable_names.append(f"A{var_index - num_variables +1}")
-                varaibles_artificiales.append(var_index)
+                variable_names.append(f"A{var_index - num_variables + 1}")
+                variables_artificiales.append(var_index)
                 basis.append(var_index)
                 var_index += 1
             else:
                 self.output_text.insert(tk.END, "Signo de restricción no reconocido.\n")
                 return
+
+            # Agregar variables de holgura y artificiales a la fila
             row.extend(slack_surplus)
             row.extend(artificial)
             row.append(b[i])
             tableau.append(row)
-        
-        while len(c_extended) < len(tableau[0])-1:
+
+        while len(c_extended) < len(tableau[0]) - 1:
             c_extended.append(0)
-        
+
+        print(f"Fila del tableau: {row}")
+        print(f"Tabla completa hasta ahora: {tableau}")
+
         self.output_text.insert(tk.END, "Tabla Inicial (Método de la M Grande):\n")
         self.mostrar_tabla(tableau, c_extended, basis, variable_names)
-        
+
         iteracion = 0
-        max_iteracions = 100
-        while iteracion < max_iteracions:
+        max_iteraciones = 100
+        while iteracion < max_iteraciones:
             iteracion += 1
             self.output_text.insert(tk.END, f"\nIteración {iteracion}:\n")
-            
-            zj = [0]*(len(tableau[0])-1)
+
+            zj = [0] * (len(tableau[0]) - 1)
             for i in range(len(basis)):
                 for j in range(len(zj)):
                     zj[j] += c_extended[basis[i]] * tableau[i][j]
             cj_zj = [c_extended[j] - zj[j] for j in range(len(zj))]
-            
+
             self.mostrar_tabla(tableau, c_extended, basis, variable_names, cj_zj=cj_zj)
-            
+
             if all(value <= 1e-5 for value in cj_zj):
                 self.output_text.insert(tk.END, "Se encontró la solución óptima.\n")
                 break
-            
+
             entering_candidates = [j for j in range(len(cj_zj)) if cj_zj[j] > 1e-5]
             if not entering_candidates:
-                self.output_text.insert(tk.END, "No hay variables entrantes. El problema puede tener soluciones múltiples.\n")
+                self.output_text.insert(tk.END,
+                                        "No hay variables entrantes. El problema puede tener soluciones múltiples.\n")
                 break
-            entering = entering_candidates[0] 
-            self.output_text.insert(tk.END, f"Variable entrante: {variable_names[entering]}\n")
-            
+
+            entering = entering_candidates[0]
+            if entering < len(variable_names):  # Verificación del índice
+                self.output_text.insert(tk.END, f"Variable entrante: {variable_names[entering]}\n")
+            else:
+                self.output_text.insert(tk.END, "Índice de variable entrante fuera de rango.\n")
+                break
+
             ratios = []
             for i in range(len(tableau)):
                 if tableau[i][entering] > 1e-5:
                     ratios.append(tableau[i][-1] / tableau[i][entering])
                 else:
                     ratios.append(float('inf'))
-            
+
             self.mostrar_tabla(tableau, c_extended, basis, variable_names, ratios=ratios, entering=entering)
-            
+
             if all(r == float('inf') for r in ratios):
                 self.output_text.insert(tk.END, "La solución es ilimitada.\n")
                 return
-            
+
             leaving = ratios.index(min(ratios))
             self.output_text.insert(tk.END, f"Variable saliente: {variable_names[basis[leaving]]}\n")
-            
+
             pivot_element = tableau[leaving][entering]
             tableau[leaving] = [x / pivot_element for x in tableau[leaving]]
-            
+
             for i in range(len(tableau)):
                 if i != leaving:
                     factor = tableau[i][entering]
                     tableau[i] = [tableau[i][j] - factor * tableau[leaving][j] for j in range(len(tableau[i]))]
-            
+
             basis[leaving] = entering
         else:
             self.output_text.insert(tk.END, "Se alcanzó el número máximo de iteraciones.\n")
             return
 
-        if any(var in basis for var in varaibles_artificiales):
+        if any(var in basis for var in variables_artificiales):
             self.output_text.insert(tk.END, "El problema no tiene solución factible.\n")
             return
-        
-        solution = [0]*(len(tableau[0])-1)
+
+        solution = [0] * (len(tableau[0]) - 1)
         for i in range(len(basis)):
             solution[basis[i]] = tableau[i][-1]
-        
-        z = sum(c_extended[i]*solution[i] for i in range(len(c_extended)))
+
+        z = sum(c_extended[i] * solution[i] for i in range(len(c_extended)))
         if self.optimization_type.get() == "Minimizar":
             z = -z
         self.output_text.insert(tk.END, f"\nSolución Óptima:\n")
         for i in range(num_variables):
             self.output_text.insert(tk.END, f"{variable_names[i]} = {solution[i]:.2f}\n")
         self.output_text.insert(tk.END, f"Z = {z:.2f}\n")
+
+        print(f"Iteración {iteracion}: tableau antes de la iteración: {tableau}")
+
+        print(f"Solución óptima: {solution}, Z: {z}")
+
+
     
     def dos_fases(self, c, A, b, signs):
         self.output_text.delete(1.0, tk.END)
@@ -432,7 +452,7 @@ class calc_simplex_mBig_dosFases:
         
         variable_names = [f"X{i+1}" for i in range(num_variables)]
         c_phase1 = [0]*(num_variables)
-        tableau = []
+        i_tabla = []
         basis = []
         varaibles_artificiales = []
         var_index = num_variables
@@ -471,13 +491,13 @@ class calc_simplex_mBig_dosFases:
             row.extend(slack_surplus)
             row.extend(artificial)
             row.append(b[i])
-            tableau.append(row)
+            i_tabla.append(row)
         
-        while len(c_phase1) < len(tableau[0])-1:
+        while len(c_phase1) < len(i_tabla[0])-1:
             c_phase1.append(0)
         
         self.output_text.insert(tk.END, "Fase 1: Tabla Inicial\n")
-        self.mostrar_tabla(tableau, c_phase1, basis, variable_names)
+        self.mostrar_tabla(i_tabla, c_phase1, basis, variable_names)
         
         iteracion = 0
         max_iteracions = 100
@@ -485,13 +505,13 @@ class calc_simplex_mBig_dosFases:
             iteracion += 1
             self.output_text.insert(tk.END, f"\nFase 1 - Iteración {iteracion}:\n")
             
-            zj = [0]*(len(tableau[0])-1)
+            zj = [0]*(len(i_tabla[0])-1)
             for i in range(len(basis)):
                 for j in range(len(zj)):
-                    zj[j] += c_phase1[basis[i]] * tableau[i][j]
+                    zj[j] += c_phase1[basis[i]] * i_tabla[i][j]
             cj_zj = [c_phase1[j] - zj[j] for j in range(len(zj))]
             
-            self.mostrar_tabla(tableau, c_phase1, basis, variable_names, cj_zj=cj_zj)
+            self.mostrar_tabla(i_tabla, c_phase1, basis, variable_names, cj_zj=cj_zj)
             
             if all(value >= -1e-5 for value in cj_zj):
                 self.output_text.insert(tk.END, "Fase 1 completada.\n")
@@ -505,13 +525,13 @@ class calc_simplex_mBig_dosFases:
             self.output_text.insert(tk.END, f"Variable entrante: {variable_names[entering]}\n")
             
             ratios = []
-            for i in range(len(tableau)):
-                if tableau[i][entering] > 1e-5:
-                    ratios.append(tableau[i][-1] / tableau[i][entering])
+            for i in range(len(i_tabla)):
+                if i_tabla[i][entering] > 1e-5:
+                    ratios.append(i_tabla[i][-1] / i_tabla[i][entering])
                 else:
                     ratios.append(float('inf'))
 
-            self.mostrar_tabla(tableau, c_phase1, basis, variable_names, ratios=ratios, entering=entering)
+            self.mostrar_tabla(i_tabla, c_phase1, basis, variable_names, ratios=ratios, entering=entering)
             
             if all(r == float('inf') for r in ratios):
                 self.output_text.insert(tk.END, "El problema no tiene solución factible.\n")
@@ -520,20 +540,20 @@ class calc_simplex_mBig_dosFases:
             leaving = ratios.index(min(ratios))
             self.output_text.insert(tk.END, f"Variable saliente: {variable_names[basis[leaving]]}\n")
             
-            pivot_element = tableau[leaving][entering]
-            tableau[leaving] = [x / pivot_element for x in tableau[leaving]]
+            pivot_element = i_tabla[leaving][entering]
+            i_tabla[leaving] = [x / pivot_element for x in i_tabla[leaving]]
             
-            for i in range(len(tableau)):
+            for i in range(len(i_tabla)):
                 if i != leaving:
-                    factor = tableau[i][entering]
-                    tableau[i] = [tableau[i][j] - factor * tableau[leaving][j] for j in range(len(tableau[i]))]
+                    factor = i_tabla[i][entering]
+                    i_tabla[i] = [i_tabla[i][j] - factor * i_tabla[leaving][j] for j in range(len(i_tabla[i]))]
 
             basis[leaving] = entering
         else:
             self.output_text.insert(tk.END, "Se alcanzó el número máximo de iteraciones en Fase 1.\n")
             return
 
-        z0 = sum(c_phase1[basis[i]] * tableau[i][-1] for i in range(len(basis)))
+        z0 = sum(c_phase1[basis[i]] * i_tabla[i][-1] for i in range(len(basis)))
         if abs(z0) > 1e-5:
             self.output_text.insert(tk.END, "El problema no tiene solución factible.\n")
             return
@@ -546,10 +566,10 @@ class calc_simplex_mBig_dosFases:
         old_to_new_indices = {old_idx: new_idx for new_idx, old_idx in enumerate(variables_to_keep)}
         basis = [old_to_new_indices[b] for b in basis]
 
-        for i in range(len(tableau)):
-            row = tableau[i]
+        for i in range(len(i_tabla)):
+            row = i_tabla[i]
             new_row = [row[old_idx] for old_idx in variables_to_keep] + [row[-1]]  
-            tableau[i] = new_row
+            i_tabla[i] = new_row
 
         c_extended_phase2 = [0]*len(variable_names)
         for idx, var_name in enumerate(variable_names):
@@ -558,20 +578,20 @@ class calc_simplex_mBig_dosFases:
                 c_extended_phase2[idx] = c[original_idx]
    
         self.output_text.insert(tk.END, "\nFase 2: Solucionar el problema original\n")
-        self.mostrar_tabla(tableau, c_extended_phase2, basis, variable_names)
+        self.mostrar_tabla(i_tabla, c_extended_phase2, basis, variable_names)
         
         iteracion = 0
         while iteracion < max_iteracions:
             iteracion += 1
             self.output_text.insert(tk.END, f"\nFase 2 - Iteración {iteracion}:\n")
             
-            zj = [0]*(len(tableau[0])-1)
+            zj = [0]*(len(i_tabla[0])-1)
             for i in range(len(basis)):
                 for j in range(len(zj)):
-                    zj[j] += c_extended_phase2[basis[i]] * tableau[i][j]
+                    zj[j] += c_extended_phase2[basis[i]] * i_tabla[i][j]
             cj_zj = [c_extended_phase2[j] - zj[j] for j in range(len(zj))]
             
-            self.mostrar_tabla(tableau, c_extended_phase2, basis, variable_names, cj_zj=cj_zj)
+            self.mostrar_tabla(i_tabla, c_extended_phase2, basis, variable_names, cj_zj=cj_zj)
             
             if all(value <= 1e-5 for value in cj_zj):
                 self.output_text.insert(tk.END, "Se encontró la solución óptima.\n")
@@ -585,13 +605,13 @@ class calc_simplex_mBig_dosFases:
             self.output_text.insert(tk.END, f"Variable entrante: {variable_names[entering]}\n")
             
             ratios = []
-            for i in range(len(tableau)):
-                if tableau[i][entering] > 1e-5:
-                    ratios.append(tableau[i][-1] / tableau[i][entering])
+            for i in range(len(i_tabla)):
+                if i_tabla[i][entering] > 1e-5:
+                    ratios.append(i_tabla[i][-1] / i_tabla[i][entering])
                 else:
                     ratios.append(float('inf'))
             
-            self.mostrar_tabla(tableau, c_extended_phase2, basis, variable_names, ratios=ratios, entering=entering)
+            self.mostrar_tabla(i_tabla, c_extended_phase2, basis, variable_names, ratios=ratios, entering=entering)
             
             if all(r == float('inf') for r in ratios):
                 self.output_text.insert(tk.END, "La solución es ilimitada.\n")
@@ -600,13 +620,13 @@ class calc_simplex_mBig_dosFases:
             leaving = ratios.index(min(ratios))
             self.output_text.insert(tk.END, f"Variable saliente: {variable_names[basis[leaving]]}\n")
             
-            pivot_element = tableau[leaving][entering]
-            tableau[leaving] = [x / pivot_element for x in tableau[leaving]]
+            pivot_element = i_tabla[leaving][entering]
+            i_tabla[leaving] = [x / pivot_element for x in i_tabla[leaving]]
             
-            for i in range(len(tableau)):
+            for i in range(len(i_tabla)):
                 if i != leaving:
-                    factor = tableau[i][entering]
-                    tableau[i] = [tableau[i][j] - factor * tableau[leaving][j] for j in range(len(tableau[i]))]
+                    factor = i_tabla[i][entering]
+                    i_tabla[i] = [i_tabla[i][j] - factor * i_tabla[leaving][j] for j in range(len(i_tabla[i]))]
             
             basis[leaving] = entering
         else:
@@ -615,7 +635,7 @@ class calc_simplex_mBig_dosFases:
         
         solution = [0]*(len(variable_names))
         for i in range(len(basis)):
-            solution[basis[i]] = tableau[i][-1]
+            solution[basis[i]] = i_tabla[i][-1]
         
         z = sum(c_extended_phase2[i]*solution[i] for i in range(len(c_extended_phase2)))
         if self.optimization_type.get() == "Minimizar":
@@ -626,8 +646,6 @@ class calc_simplex_mBig_dosFases:
                 self.output_text.insert(tk.END, f"{var_name} = {solution[idx]:.2f}\n")
         self.output_text.insert(tk.END, f"Z = {z:.2f}\n")
         
-
-
 if __name__ == "__main__":
     root = tk.Tk()
     app = calc_simplex_mBig_dosFases(root)
